@@ -1,111 +1,510 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>Todo List APP test</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f4f4f4;
-                color: #333;
-                margin: 0;
-                padding: 0;
-            }
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pipeline Tasks — CI/CD Integration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0D1117;
+    --surface: #161B22;
+    --surface-raised: #1C2129;
+    --border: #30363D;
+    --border-soft: #21262D;
+    --text: #E6EDF3;
+    --text-dim: #8B949E;
+    --text-faint: #545D68;
 
-            h1 {
-                background-color: #4CAF50;
-                color: white;
-                margin: 0;
-                padding: 20px;
-                text-align: center;
-            }
+    --stage-build: #58A6FF;
+    --stage-test:  #D29922;
+    --stage-docker:#39A6F5;
+    --stage-deploy:#3FB950;
+    --stage-infra: #BC8CFF;
 
-            ul {
-                list-style: none;
-                padding: 0;
-            }
+    --danger: #F85149;
+    --focus: #58A6FF;
 
-            ul li {
-                background: #fff;
-                border: 1px solid #ddd;
-                margin-bottom: 10px;
-                padding: 10px;
-                position: relative;
-            }
+    font-family: 'Inter', system-ui, sans-serif;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
 
-            ul li a {
-                color: #333;
-                text-decoration: none;
-                font-weight: bold;
-            }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 12% -10%, rgba(88,166,255,0.08), transparent 40%),
+      radial-gradient(circle at 90% 0%, rgba(63,185,80,0.06), transparent 35%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100%;
+  }
 
-            ul li a:hover {
-                color: #4CAF50;
-            }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
-            .delete-btn {
-                color: red;
-                position: absolute;
-                right: 10px;
-                top: 10px;
-            }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
 
-            .edit-btn {
-                color: #FFC107;
-                position: absolute;
-                right: 40px;
-                top: 10px;
-            }
+  /* ---- Header ---- */
+  .breadcrumb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb .sep { color: var(--border); }
+  .breadcrumb .node { color: var(--text-dim); }
+  .breadcrumb .node.active { color: var(--stage-deploy); }
 
-            form {
-                background: #fff;
-                padding: 20px;
-                margin-top: 20px;
-            }
+  h1 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    max-width: 34ch;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 14.5px;
+    margin: 0 0 28px;
+    max-width: 56ch;
+  }
 
-            label {
-                display: block;
-                margin-bottom: 10px;
-            }
+  /* ---- Pipeline strip ---- */
+  .pipeline {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 32px;
+    background: var(--surface);
+  }
+  .pipeline-stage {
+    flex: 1;
+    padding: 13px 10px;
+    text-align: center;
+    border-right: 1px solid var(--border-soft);
+    position: relative;
+  }
+  .pipeline-stage:last-child { border-right: none; }
+  .pipeline-stage .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .pipeline-stage .label {
+    font-size: 10.5px;
+    text-transform: lowercase;
+    color: var(--text-dim);
+    margin-top: 5px;
+    letter-spacing: 0.01em;
+  }
+  .pipeline-stage .bar {
+    position: absolute;
+    left: 0; bottom: 0;
+    height: 2.5px;
+    width: 100%;
+    opacity: 0.85;
+  }
 
-            input[type="text"] {
-                width: 100%;
-                padding: 10px;
-                margin-bottom: 10px;
-                border: 1px solid #ddd;
-            }
+  /* ---- Add form ---- */
+  form.add {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 28px;
+  }
+  .add-row {
+    display: flex;
+    gap: 10px;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 12px;
+    border-radius: 7px;
+    font-size: 14.5px;
+    font-family: inherit;
+    min-width: 0;
+  }
+  input[type="text"]::placeholder { color: var(--text-faint); }
+  input[type="text"]:focus-visible,
+  select:focus-visible,
+  button:focus-visible,
+  .icon-btn:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
 
-            input[type="submit"] {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                cursor: pointer;
-            }
+  select#stageSelect {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 7px;
+    padding: 0 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    max-width: 118px;
+  }
 
-            input[type="submit"]:hover {
-                background-color: #45a049;
-            }
-        </style>
-    </head>
+  button.submit {
+    background: var(--stage-deploy);
+    color: #04140A;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 0 18px;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button.submit:hover { background: #4CC65C; }
+  button.submit:active { transform: translateY(1px); }
 
-    <body>
-        <h1>Project Name:Jenkins CI/CD Pipeline Integration with GitHub, Docker & AWS EC2</h1>
-        <ul>
-            <% todolist.forEach(function(todo, index) { %>
-            <li>
-                <a href="/todo/delete/<%= index %>" class="delete-btn">✘</a>
-                <a href="/todo/<%= index %>" class="edit-btn">✎</a>
-                <%- todo %>
-            </li>
-            <% }); %>
-        </ul>
+  /* ---- List ---- */
+  ul.todos { list-style: none; margin: 0; padding: 0; }
 
-        <form action="/todo/add/" method="post">
-            <p>
-                <label for="newtodo">What should I do?</label>
-                <input type="text" name="newtodo" id="newtodo" autofocus />
-                <input type="submit" value="Add" />
-            </p>
-        </form>
-    </body>
+  li.todo {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--stage-build);
+    border-radius: 8px;
+    padding: 13px 14px;
+    margin-bottom: 9px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: opacity 0.15s ease;
+  }
+  li.todo[data-stage="build"]  { border-left-color: var(--stage-build); }
+  li.todo[data-stage="test"]   { border-left-color: var(--stage-test); }
+  li.todo[data-stage="docker"] { border-left-color: var(--stage-docker); }
+  li.todo[data-stage="deploy"] { border-left-color: var(--stage-deploy); }
+  li.todo[data-stage="infra"]  { border-left-color: var(--stage-infra); }
+
+  li.todo.done { opacity: 0.5; }
+  li.todo.done .todo-text { text-decoration: line-through; color: var(--text-faint); }
+
+  .check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    margin-top: 2px;
+    cursor: pointer;
+    position: relative;
+  }
+  .check:checked { background: var(--stage-deploy); border-color: var(--stage-deploy); }
+  .check:checked::after {
+    content: "";
+    position: absolute;
+    left: 5px; top: 1px;
+    width: 4px; height: 8px;
+    border: solid #04140A;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .todo-body { flex: 1; min-width: 0; }
+  .todo-text {
+    font-size: 14.5px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .todo-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+  }
+  .stage-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+  .stage-chip[data-stage="build"]  { background: rgba(88,166,255,0.14);  color: var(--stage-build); }
+  .stage-chip[data-stage="test"]   { background: rgba(210,153,34,0.14);  color: var(--stage-test); }
+  .stage-chip[data-stage="docker"] { background: rgba(57,166,245,0.14);  color: var(--stage-docker); }
+  .stage-chip[data-stage="deploy"] { background: rgba(63,185,80,0.14);   color: var(--stage-deploy); }
+  .stage-chip[data-stage="infra"]  { background: rgba(188,140,255,0.14); color: var(--stage-infra); }
+
+  .todo-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn:hover { background: var(--surface-raised); color: var(--text); }
+  .icon-btn.delete-btn:hover { color: var(--danger); }
+  .icon-btn.edit-btn:hover { color: var(--stage-test); }
+
+  input.edit-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--focus);
+    color: var(--text);
+    padding: 6px 8px;
+    border-radius: 5px;
+    font-size: 14.5px;
+    font-family: inherit;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 44px 20px;
+    color: var(--text-faint);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+  }
+  .empty .mono { color: var(--text-dim); font-size: 13px; }
+
+  footer {
+    margin-top: 36px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 32px 16px 72px; }
+    h1 { font-size: 21px; }
+    .pipeline-stage .label { display: none; }
+    select#stageSelect { max-width: 92px; }
+    .add-row { flex-wrap: wrap; }
+    button.submit { flex: 1; padding: 11px; }
+    input[type="text"] { flex-basis: 100%; }
+    select#stageSelect { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="breadcrumb">
+    <span class="node">github</span><span class="sep">→</span>
+    <span class="node">jenkins</span><span class="sep">→</span>
+    <span class="node">docker</span><span class="sep">→</span>
+    <span class="node active">aws ec2</span>
+  </div>
+
+  <h1>Automated CI/CD Pipeline Integration with GitHub, Docker &amp; AWS EC2</h1>
+  <p class="subtitle">Task board for wiring up the Jenkins pipeline — from repo webhook through containerized build to EC2 deploy.</p>
+
+  <div class="pipeline" id="pipelineStrip"></div>
+
+  <form class="add" id="addForm">
+    <div class="add-row">
+      <input type="text" id="newTodo" placeholder="What needs doing?" autofocus autocomplete="off" />
+      <select id="stageSelect">
+        <option value="build">build</option>
+        <option value="test">test</option>
+        <option value="docker">docker</option>
+        <option value="deploy">deploy</option>
+        <option value="infra">infra</option>
+      </select>
+      <button type="submit" class="submit">Add task</button>
+    </div>
+  </form>
+
+  <ul class="todos" id="todoList"></ul>
+  <div class="empty" id="emptyState" style="display:none;">
+    No tasks yet — queue is clean.<br/><span class="mono">git push to get started ↑</span>
+  </div>
+
+  <footer>saved locally in this browser</footer>
+</div>
+
+<script>
+(function () {
+  const STAGES = ['build','test','docker','deploy','infra'];
+  const STAGE_COLOR = {
+    build:  'var(--stage-build)',
+    test:   'var(--stage-test)',
+    docker: 'var(--stage-docker)',
+    deploy: 'var(--stage-deploy)',
+    infra:  'var(--stage-infra)'
+  };
+
+  const STORAGE_KEY = 'cicd_todo_items_v1';
+
+  let todos = [];
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    todos = saved ? JSON.parse(saved) : seedTodos();
+  } catch (e) {
+    todos = seedTodos();
+  }
+
+  function seedTodos() {
+    return [
+      { id: cryptoId(), text: 'Add Jenkinsfile with declarative pipeline stages', stage: 'build', done: true },
+      { id: cryptoId(), text: 'Configure GitHub webhook to trigger Jenkins job on push', stage: 'build', done: false },
+      { id: cryptoId(), text: 'Write unit test stage and publish JUnit report', stage: 'test', done: false },
+      { id: cryptoId(), text: 'Build and tag Docker image in pipeline', stage: 'docker', done: false },
+      { id: cryptoId(), text: 'Push image to registry (ECR / Docker Hub)', stage: 'docker', done: false },
+      { id: cryptoId(), text: 'Provision EC2 instance and open required ports', stage: 'infra', done: false },
+      { id: cryptoId(), text: 'SSH deploy step: pull image and restart container on EC2', stage: 'deploy', done: false }
+    ];
+  }
+
+  function cryptoId() {
+    return 'id_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(todos)); }
+    catch (e) { /* storage unavailable — state still works for this session */ }
+  }
+
+  function renderPipeline() {
+    const strip = document.getElementById('pipelineStrip');
+    strip.innerHTML = '';
+    STAGES.forEach(stage => {
+      const items = todos.filter(t => t.stage === stage);
+      const open = items.filter(t => !t.done).length;
+      const div = document.createElement('div');
+      div.className = 'pipeline-stage';
+      div.innerHTML =
+        '<div class="count mono" style="color:' + STAGE_COLOR[stage] + '">' + open + '</div>' +
+        '<div class="label">' + stage + '</div>' +
+        '<div class="bar" style="background:' + STAGE_COLOR[stage] + '; opacity:' + (open ? 0.9 : 0.15) + '"></div>';
+      strip.appendChild(div);
+    });
+  }
+
+  function renderList() {
+    const list = document.getElementById('todoList');
+    const empty = document.getElementById('emptyState');
+    list.innerHTML = '';
+
+    if (todos.length === 0) {
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      todos.forEach(todo => list.appendChild(renderItem(todo)));
+    }
+    renderPipeline();
+  }
+
+  function renderItem(todo) {
+    const li = document.createElement('li');
+    li.className = 'todo' + (todo.done ? ' done' : '');
+    li.dataset.stage = todo.stage;
+    li.dataset.id = todo.id;
+
+    li.innerHTML =
+      '<input type="checkbox" class="check" ' + (todo.done ? 'checked' : '') + ' aria-label="Mark task complete" />' +
+      '<div class="todo-body">' +
+        '<div class="todo-text"></div>' +
+        '<div class="todo-meta">' +
+          '<span class="stage-chip" data-stage="' + todo.stage + '">' + todo.stage + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="todo-actions">' +
+        '<button class="icon-btn edit-btn" title="Edit" aria-label="Edit task">✎</button>' +
+        '<button class="icon-btn delete-btn" title="Delete" aria-label="Delete task">✕</button>' +
+      '</div>';
+
+    li.querySelector('.todo-text').textContent = todo.text;
+
+    li.querySelector('.check').addEventListener('change', () => {
+      todo.done = !todo.done;
+      save();
+      renderList();
+    });
+
+    li.querySelector('.delete-btn').addEventListener('click', () => {
+      todos = todos.filter(t => t.id !== todo.id);
+      save();
+      renderList();
+    });
+
+    li.querySelector('.edit-btn').addEventListener('click', () => startEdit(li, todo));
+
+    return li;
+  }
+
+  function startEdit(li, todo) {
+    const body = li.querySelector('.todo-body');
+    const original = body.innerHTML;
+
+    body.innerHTML = '';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'edit-input';
+    input.value = todo.text;
+    body.appendChild(input);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+
+    function commit() {
+      const val = input.value.trim();
+      if (val) todo.text = val;
+      save();
+      renderList();
+    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') commit();
+      if (e.key === 'Escape') { body.innerHTML = original; }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  document.getElementById('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const input = document.getElementById('newTodo');
+    const stage = document.getElementById('stageSelect').value;
+    const text = input.value.trim();
+    if (!text) return;
+    todos.push({ id: cryptoId(), text: text, stage: stage, done: false });
+    input.value = '';
+    input.focus();
+    save();
+    renderList();
+  });
+
+  renderList();
+})();
+</script>
+</body>
 </html>
